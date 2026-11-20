@@ -1,3 +1,6 @@
-python -c "import mcp; import anyio; print('uefi-uefimcp-engenharias OK')"
-claude mcp add --scope user uefi-uefimcp-engenharias -- python "E:\Bibliotecas\Documentos\PROGRAMMING\UEFIabc\uefi-uefimcp-engenharias\run.py"
+python -m venv .venv
+.venv\Scripts\python -m pip install -e ".[pdf,math]"
+.venv\Scripts\python -c "import mcp; import anyio; print('uefi-uefimcp-iar OK')"
+.venv\Scripts\python scripts\check_mcp.py
+claude mcp add --scope user uefi-uefimcp-iar -- "E:\Bibliotecas\Documentos\PROGRAMMING\UEFIabc\uefi-uefimcp-iar\.venv\Scripts\python.exe" "E:\Bibliotecas\Documentos\PROGRAMMING\UEFIabc\uefi-uefimcp-iar\run.py"
 claude mcp list

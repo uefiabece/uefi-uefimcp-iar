@@ -1,9 +1,11 @@
 """
-Ferramentas de navegação curricular — específicas para as Engenharias (UFABC).
+Ferramentas de navegação curricular — específicas para o Bacharelado em
+Engenharia de Instrumentação, Automação e Robótica da UFABC.
 
 Estas ferramentas complementam as ferramentas genéricas do template com
-funcionalidades voltadas para a navegação do currículo de curso,
-não apenas de uma disciplina individual.
+funcionalidades voltadas para a navegação do currículo de um curso inteiro,
+não apenas de uma disciplina individual. Engenharia de Instrumentação, Automação e Robótica é um curso de segundo ciclo:
+o estudante ingressa nele a partir do BCT.
 """
 
 from __future__ import annotations
@@ -22,70 +24,65 @@ def register_curriculum_tools(
     if not config.get("features", {}).get("curriculum_navigation"):
         return
 
-    course_name = config.get("course_name", "Engenharias")
-    ppc_version = config.get("metadata", {}).get("ppc_version", "vigente")
+    course_name = config.get("course_name", "Engenharia de Instrumentação, Automação e Robótica")
+    metadata = config.get("metadata", {})
+    ppc_version = metadata.get("ppc_version") or "vigente"
+    ppc_versions = metadata.get("ppc_versions_available") or []
+
+    ppc_schema: dict = {
+        "type": "string",
+        "description": f"Versão do PPC a consultar. Padrão: {ppc_version}.",
+    }
+    if ppc_versions:
+        ppc_schema["enum"] = ppc_versions
 
     # --- get_curriculum_structure ---
     tools.append(
         types.Tool(
             name="get_curriculum_structure",
             description=(
-                f"Retorna a estrutura curricular de um curso de Engenharia da UFABC: "
-                "disciplinas obrigatórias, de opção limitada, de livre escolha e extensão. "
+                f"Retorna a estrutura curricular completa do {course_name}: "
+                "disciplinas obrigatórias, de opção limitada, livres, extensão e TCC. "
                 "Baseado nos arquivos carregados em content/syllabus/."
             ),
             inputSchema={
                 "type": "object",
-                "properties": {
-                    "curso": {
-                        "type": "string",
-                        "description": (
-                            "Nome do curso de engenharia a consultar, ex: 'Engenharia Aeroespacial', "
-                            "'Engenharia de Informação', 'Engenharia Biomédica'. "
-                            "Omita para obter uma visão geral de todas as engenharias."
-                        ),
-                    },
-                    "ppc": {
-                        "type": "string",
-                        "description": f"Versão do PPC a consultar. Padrão: {ppc_version}.",
-                    },
-                },
+                "properties": {"ppc": ppc_schema},
                 "required": [],
             },
         )
     )
 
     async def handle_get_curriculum_structure(args: dict) -> str:
-        curso = args.get("curso", "").strip()
         ppc = args.get("ppc", ppc_version)
 
-        query = curso if curso else "obrigatória"
+        # Try to find PPC-specific syllabus files first
         all_syllabus = loader.get_section("syllabus")
-        filtered = [i for i in all_syllabus if not curso or curso.lower() in i["name"].lower()]
-        items = filtered if filtered else all_syllabus
+        ppc_items = [i for i in all_syllabus if ppc in i["name"]]
+        items = ppc_items if ppc_items else all_syllabus
 
         if not items:
-            bib_results = loader.search(query, section="bibliography")
+            # Fall back to searching bibliography for PPC documents
+            bib_results = loader.search(f"ppc_{ppc}", section="bibliography")
+            bib_results += loader.search("obrigatória", section="bibliography")
             if bib_results:
                 snippets = "\n\n".join(r["snippet"] for r in bib_results[:5])
-                label = f" — {curso}" if curso else ""
                 return (
-                    f"## Estrutura Curricular — {course_name}{label}\n\n"
+                    f"## Estrutura Curricular — {course_name} (PPC {ppc})\n\n"
                     f"[Extraído da bibliografia]\n\n{snippets}\n\n"
                     f"[O assistente deve apresentar a estrutura curricular completa "
-                    f"com base nos trechos acima e no seu conhecimento das {course_name} da UFABC.]"
+                    f"com base nos trechos acima e no seu conhecimento do {course_name}.]"
                 )
             return (
                 "Nenhum arquivo de ementa carregado ainda. "
-                "Adicione arquivos em content/syllabus/ ou verifique se os PPCs "
+                "Adicione arquivos em content/syllabus/ ou verifique se os PDFs do PPC "
                 "estão em content/bibliography/ e se o suporte a PDF está instalado "
                 "(`pip install -e \".[pdf]\"`). "
             )
 
         combined = "\n\n---\n\n".join(f"# {i['name']}\n\n{i['text']}" for i in items)
-        label = f" — {curso}" if curso else ""
         return (
-            f"## Estrutura Curricular — {course_name}{label} (PPC {ppc})\n\n"
+            f"## Estrutura Curricular — {course_name} (PPC {ppc})\n\n"
             f"{combined}"
         )
 
@@ -96,9 +93,9 @@ def register_curriculum_tools(
         types.Tool(
             name="list_subjects_by_area",
             description=(
-                f"Lista as disciplinas das {course_name} agrupadas por área do conhecimento "
-                "(ex: Matemática, Física, Elétrica, Mecânica, Software, Gestão, Materiais). "
-                "Útil para explorar opções de opção limitada ou livre escolha."
+                "Lista as disciplinas de Engenharia de Instrumentação, Automação e Robótica agrupadas por área "
+                "(ex: Instrumentação e Sensores, Sistemas de Controle, Automação Industrial, Robótica, Eletrônica, Sistemas Embarcados). "
+                "Útil para explorar opções limitadas e livres."
             ),
             inputSchema={
                 "type": "object",
@@ -106,9 +103,7 @@ def register_curriculum_tools(
                     "area": {
                         "type": "string",
                         "description": (
-                            "Área a filtrar (ex: 'matemática', 'física', 'elétrica', 'mecânica', "
-                            "'software', 'gestão', 'materiais', 'computação'). "
-                            "Omita para listar todas."
+                            "Área a filtrar (ex: 'instrumentação', 'sensores', 'controle', 'automação', 'robótica', 'eletrônica', 'sistemas embarcados'). Omita para listar todas."
                         ),
                     }
                 },
@@ -132,12 +127,13 @@ def register_curriculum_tools(
 
         area_label = f" — Área: {area.title()}" if area else ""
         return (
-            f"## Disciplinas das {course_name}{area_label}\n"
+            f"## Disciplinas do {course_name}{area_label}\n"
             f"{context_block}\n\n"
-            f"[O assistente deve listar as disciplinas das {course_name}"
+            f"[O assistente deve listar as disciplinas de Engenharia de Instrumentação, Automação e Robótica"
             f"{' na área de ' + area if area else ''}, "
-            f"organizadas por categoria (obrigatória / opção limitada / livre escolha), "
-            f"baseando-se nos materiais acima e no conhecimento dos currículos das Engenharias da UFABC.]"
+            f"organizadas por categoria (obrigatória / opção limitada / livre), "
+            f"indicando quais já são cursadas no BCT, "
+            f"baseando-se nos materiais acima e no conhecimento do currículo de Engenharia de Instrumentação, Automação e Robótica da UFABC.]"
         )
 
     handlers["list_subjects_by_area"] = handle_list_subjects_by_area
@@ -147,8 +143,8 @@ def register_curriculum_tools(
         types.Tool(
             name="get_disciplinas_limitadas",
             description=(
-                "Retorna a lista de disciplinas com oferta limitada (vagas restritas) "
-                "disponível no arquivo de planejamento de oferta ou na lista oficial. "
+                "Retorna as disciplinas de opção limitada de Engenharia de Instrumentação, Automação e Robótica e as disciplinas com "
+                "oferta restrita, a partir do PPC ou do planejamento de oferta carregado. "
                 "Útil para planejar a matrícula com antecedência."
             ),
             inputSchema={
@@ -167,24 +163,25 @@ def register_curriculum_tools(
     async def handle_get_disciplinas_limitadas(args: dict) -> str:
         area = args.get("area", "").strip()
 
-        results = loader.search("limitad", section="bibliography")
+        results = loader.search("limitad", section="syllabus")
+        results += loader.search("limitad", section="bibliography")
         if area:
             results = [r for r in results if area.lower() in r["snippet"].lower()] or results
 
         if not results:
             return (
-                "Nenhum arquivo de disciplinas limitadas encontrado. "
-                "Verifique se o arquivo com a lista de disciplinas limitadas está em "
-                "content/bibliography/ e se o suporte a PDF está instalado "
+                "Nenhum material sobre disciplinas de opção limitada encontrado. "
+                "Adicione o PPC de Engenharia de Instrumentação, Automação e Robótica ou a lista de oferta em content/bibliography/ "
+                "e verifique se o suporte a PDF está instalado "
                 "(`pip install -e \".[pdf]\"`). "
             )
 
         snippets = "\n\n".join(r["snippet"] for r in results[:8])
         filter_note = f" (filtrado por: '{area}')" if area else ""
         return (
-            f"## Disciplinas com Oferta Limitada{filter_note}\n\n"
+            f"## Disciplinas de Opção Limitada{filter_note}\n\n"
             f"{snippets}\n\n"
-            f"[O assistente deve apresentar as disciplinas com oferta limitada "
+            f"[O assistente deve apresentar as disciplinas de opção limitada "
             f"listadas nos trechos acima de forma organizada, indicando nomes e códigos.]"
         )
 
@@ -195,24 +192,20 @@ def register_curriculum_tools(
         types.Tool(
             name="get_progression_requirements",
             description=(
-                f"Retorna os requisitos de progressão e formatura das {course_name}: "
-                "número mínimo de créditos por categoria, requisitos de extensão, "
-                "aproveitamento mínimo e regras de jubilamento."
+                "Retorna os requisitos de ingresso, progressão e formatura de Engenharia de Instrumentação, Automação e Robótica: "
+                "ingresso a partir do BCT, créditos mínimos por categoria, TCC, estágio, "
+                "extensão, coeficientes (CR, CA, CP) e regras de jubilamento."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "curso": {
-                        "type": "string",
-                        "description": "Nome do curso de engenharia (ex: 'Engenharia de Informação'). Opcional.",
-                    },
                     "topic": {
                         "type": "string",
                         "description": (
-                            "Aspecto específico a consultar, ex: 'extensão', "
-                            "'livre escolha', 'jubilamento', 'coeficiente de rendimento'."
+                            "Aspecto específico a consultar, ex: 'ingresso', 'TCC', "
+                            "'estágio', 'extensão', 'opção limitada', 'coeficiente de rendimento'."
                         ),
-                    },
+                    }
                 },
                 "required": [],
             },
@@ -220,10 +213,9 @@ def register_curriculum_tools(
     )
 
     async def handle_get_progression_requirements(args: dict) -> str:
-        curso = args.get("curso", "").strip()
         topic = args.get("topic", "").strip()
 
-        query = " ".join(filter(None, [curso, topic])) or "progressão formatura créditos"
+        query = topic if topic else "créditos"
         results = loader.search(query, section="syllabus")
         if not results:
             results = loader.search(query, section="bibliography")
@@ -233,15 +225,15 @@ def register_curriculum_tools(
             snippets = "\n\n".join(r["snippet"] for r in results[:5])
             context_block = f"\n\n## Trechos relevantes dos materiais\n\n{snippets}"
 
-        curso_label = f" — {curso}" if curso else ""
-        topic_note = f" ({topic})" if topic else ""
+        topic_note = f" — {topic.title()}" if topic else ""
         return (
-            f"## Requisitos de Progressão e Formatura — {course_name}{curso_label}{topic_note}\n"
+            f"## Requisitos de Progressão e Formatura — {course_name}{topic_note}\n"
             f"{context_block}\n\n"
-            f"[O assistente deve descrever os requisitos de progressão e formatura"
-            f"{' relacionados a ' + topic if topic else ''}"
-            f"{' para ' + curso if curso else ' para as Engenharias da UFABC'}, "
-            f"baseando-se nos materiais acima e no conhecimento dos PPCs.]"
+            f"[O assistente deve descrever os requisitos{' relacionados a ' + topic if topic else ''} "
+            f"para ingresso, progressão e formatura em Engenharia de Instrumentação, Automação e Robótica na UFABC (PPC {ppc_version}), "
+            f"baseando-se nos materiais acima e no conhecimento do PPC. "
+            f"Se não houver material carregado, avise que a resposta não está fundamentada "
+            f"nos documentos oficiais.]"
         )
 
     handlers["get_progression_requirements"] = handle_get_progression_requirements
@@ -251,35 +243,28 @@ def register_curriculum_tools(
         types.Tool(
             name="plan_academic_journey",
             description=(
-                f"Gera um planejamento acadêmico sugerido para um curso de Engenharia da UFABC, "
-                "considerando o quadrimestre atual, disciplinas já cursadas e área de "
-                "especialização ou aprofundamento."
+                "Gera um planejamento acadêmico sugerido rumo a Engenharia de Instrumentação, Automação e Robótica, "
+                "considerando o quadrimestre atual, disciplinas já cursadas (do BCT e de Engenharia de Instrumentação, Automação e Robótica) "
+                "e a área de interesse dentro de Engenharia de Instrumentação, Automação e Robótica. "
+                "Sugere disciplinas para os próximos quadrimestres."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "curso": {
-                        "type": "string",
-                        "description": (
-                            "Curso de engenharia (ex: 'Engenharia Aeroespacial', "
-                            "'Engenharia de Informação', 'Engenharia Biomédica')."
-                        ),
-                    },
                     "current_quarter": {
                         "type": "integer",
-                        "description": "Quadrimestre atual do curso.",
+                        "description": "Quadrimestre atual na UFABC (contando desde o ingresso no BCT).",
                     },
                     "completed_subjects": {
                         "type": "array",
                         "items": {"type": "string"},
                         "description": "Lista de disciplinas já concluídas (nomes ou códigos).",
                     },
-                    "research_area": {
+                    "focus_area": {
                         "type": "string",
                         "description": (
-                            "Área de interesse ou aprofundamento, ex: "
-                            "'aeroespacial', 'ambiental', 'biomédica', 'energia', "
-                            "'gestão', 'informação', 'automação', 'materiais', 'software'."
+                            "Área de interesse para orientar as opções limitadas e livres, ex: "
+                            "'Robótica', 'Controle', 'Automação Industrial', 'Instrumentação', 'Sistemas Embarcados'."
                         ),
                     },
                 },
@@ -289,11 +274,11 @@ def register_curriculum_tools(
     )
 
     async def handle_plan_academic_journey(args: dict) -> str:
-        curso = args.get("curso", "").strip()
         quarter = args.get("current_quarter", 1)
         completed = args.get("completed_subjects", [])
-        area = args.get("research_area", "")
+        focus = args.get("focus_area", "")
 
+        # Pull curriculum context
         syllabus_items = loader.get_section("syllabus")
         syllabus_text = (
             "\n\n".join(i["text"] for i in syllabus_items)
@@ -301,24 +286,22 @@ def register_curriculum_tools(
             else "Nenhuma ementa carregada."
         )
 
-        curso_note = f"\nCurso: {curso}" if curso else ""
         completed_note = (
             f"\nDisciplinas concluídas: {', '.join(completed)}" if completed else ""
         )
-        area_note = f"\nÁrea de interesse: {area}" if area else ""
+        focus_note = f"\nÁrea de interesse: {focus}" if focus else ""
 
         return (
             f"## Planejamento Acadêmico — {course_name}\n"
             f"**Quadrimestre atual:** {quarter}"
-            f"{curso_note}"
             f"{completed_note}"
-            f"{area_note}\n\n"
+            f"{focus_note}\n\n"
             f"## Referência curricular\n\n{syllabus_text}\n\n"
             f"[O assistente deve sugerir um planejamento quadrimestral a partir do "
-            f"quadrimestre {quarter}"
-            f"{' para ' + curso if curso else ''}, "
-            f"priorizando pré-requisitos das disciplinas obrigatórias ainda não cursadas"
-            f"{' e das disciplinas relevantes para a área de ' + area if area else ''}. "
+            f"quadrimestre {quarter}, separando o que ainda falta do BCT (pré-requisito "
+            f"para o diploma de Engenharia de Instrumentação, Automação e Robótica) e as obrigatórias do curso, respeitando a cadeia de "
+            f"pré-requisitos recomendados"
+            f"{' e priorizando opções limitadas ligadas a ' + focus if focus else ''}. "
             f"Apresente o plano em tabela ou lista por quadrimestre.]"
         )
 

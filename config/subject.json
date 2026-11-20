@@ -1,13 +1,11 @@
 {
-  "_comment": "Engenharias da UFABC — cursos de segundo ciclo. Cobre as Engenharias como família de cursos.",
-
-  "server_name": "uefi-mcp-engenharias",
-  "subject_name": "Engenharias UFABC",
-  "course_name": "Engenharias",
-  "course_code": "ENG",
+  "_comment": "Engenharia de Instrumentação, Automação e Robótica — curso de segundo ciclo da UFABC, acessado após o BCT. Derivado do uefi-uefimcp-engenharias (família das Engenharias). Nível: curso (não disciplina).",
+  "server_name": "uefi-mcp-iar",
+  "subject_name": "Engenharia de Instrumentação, Automação e Robótica",
+  "course_name": "Engenharia de Instrumentação, Automação e Robótica",
+  "course_code": null,
   "institution": "UFABC",
   "language": "pt-BR",
-
   "features": {
     "image_interpretation": false,
     "symbolic_math": true,
@@ -16,14 +14,28 @@
     "curriculum_navigation": true,
     "pdf_reading": true
   },
-
-  "difficulty_levels": ["easy", "medium", "hard"],
-  "exercise_styles": ["multiple_choice", "open_answer", "proof", "practical"],
-
-  "content_sections": ["syllabus", "bibliography", "exams", "exercises", "notes", "media"],
-
+  "difficulty_levels": [
+    "easy",
+    "medium",
+    "hard"
+  ],
+  "exercise_styles": [
+    "multiple_choice",
+    "open_answer",
+    "proof",
+    "practical"
+  ],
+  "content_sections": [
+    "syllabus",
+    "bibliography",
+    "exams",
+    "exercises",
+    "notes",
+    "media"
+  ],
   "metadata": {
     "degree_type": "bacharelado_segundo_ciclo",
+    "prerequisite_course": "BCT",
     "total_credits_approx": null,
     "ppc_version": null,
     "ppc_versions_available": [],
@@ -31,6 +43,14 @@
     "duration_years": null,
     "year": 2026,
     "semester": null,
-    "professor": null
+    "professor": null,
+    "parent_family": "Engenharias (uefi-uefimcp-engenharias)"
+  },
+  "level": "course",
+  "origin": {
+    "repository": "https://github.com/uefiabece/uefi-uefimcp-engenharias",
+    "parent_template": "https://github.com/uefiabece/uefi-uefimcp",
+    "template_commit": "8fa9ccb24be21ee3d173f82a07c29b43403efc56",
+    "method": "git clone do uefi-uefimcp-engenharias + ferramentas curriculares de curso único (padrão comp/dados) + verificação stdio do uefi-uefimcp-neuro; materiais acadêmicos não importados"
   }
 }
